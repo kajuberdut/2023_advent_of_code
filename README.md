@@ -36,6 +36,13 @@ pdm run day 1
 Replace "1" with the day you wish to run.
 
 
+You can also run tests for all completed days with:
+
+``` bash
+pdm run test
+```
+
+
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
 

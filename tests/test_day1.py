@@ -8,11 +8,11 @@ class TestDay1Function(unittest.TestCase):
     def test_first_part(self):
         expected = 55090
         # Empty dict for digits means no strings will be interpreted as digits
-        self.assertEqual(solution.main(digits={}), expected, f"Should be {expected}")
+        self.assertEqual(solution.solve(digits={}), expected, f"Should be {expected}")
 
     def test_second_part(self):
         expected = 54845
-        self.assertEqual(solution.main(), expected, f"Should be {expected}")
+        self.assertEqual(solution.solve(), expected, f"Should be {expected}")
 
 # This allows running the tests from the command line
 if __name__ == '__main__':
