@@ -1,0 +1,20 @@
+[project]
+name = "aoc"
+version = "0.1.0"
+description = "2023 advent of code"
+authors = [
+    {name = "Patrick Shechet", email = "patrick.shechet@gmail.com"},
+]
+dependencies = []
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ruff>=0.1.6",
+]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
