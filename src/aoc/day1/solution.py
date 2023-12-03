@@ -26,7 +26,7 @@ def build_digit_dict():
 
 
 
-def main(digits: dict | None = None) -> int:
+def solve(digits: dict | None = None) -> int:
 
     if digits is None:
         digits = build_digit_dict()
@@ -60,6 +60,10 @@ def main(digits: dict | None = None) -> int:
 
     return result
 
+def main():
+    result_part_1 = solve({})
+    result_part_2 = solve()
+    print(f"{result_part_1=}, {result_part_2=}")
+
 if __name__ == "__main__":
-    result = main({})
-    print(result)
+    main()
