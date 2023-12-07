@@ -1,18 +1,17 @@
+import multiprocessing
 import re
-import sqlite3
+from collections import defaultdict
 
-from aoc.database import DB, execute_statements, insert_many, query
-from aoc.utility import load_input
+from aoc.utility import load_input, split_range_into_n
 
 A_TO_B_PATERN = r"(\w+)-to-(\w+) map:"
-DB.connect(":memory:")
+num_processes = multiprocessing.cpu_count()
 
 
 class Maps:
     def __init__(self):
-        self.data = []
-        self.current_source = None
-        self.current_destination = None
+        self.data = defaultdict(list)
+        self.current_key = None
 
     @classmethod
     def from_lines(cls, lines: list) -> "Maps":
@@ -24,75 +23,63 @@ class Maps:
                 m.set_current(line)
             else:
                 m.row(line)
-
-        m.populate_db()
         return m
-
-    def populate_db(self):
-        create_sql = """
-        CREATE TABLE IF NOT EXISTS maps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source              TEXT,
-            source_start        INTEGER,
-            source_end          INTEGER,
-            destination         TEXT,
-            destination_start   INTEGER,
-            offset              INTEGER,
-            UNIQUE(source, source_start) ON CONFLICT IGNORE
-        );
-        """
-        execute_statements(create_sql)
-        insert_many(table_name="maps", data=self.data)
 
     @classmethod
     def extract_a_b(self, map_string: str) -> tuple:
         matches = re.findall(A_TO_B_PATERN, map_string)
-        return matches[0] if matches else ()
+        return matches[0]
 
     def set_current(self, map_row: str):
-        self.current_source, self.current_destination = self.extract_a_b(map_row)
+        self.current_key = self.extract_a_b(map_row)
 
     def row(self, row_text: str):
         b, a, delta = [int(v) for v in row_text.split()]
+
         row_data = {
-            "source": self.current_source,
-            "source_start": a,
-            "source_end": a + delta - 1,
-            "destination": self.current_destination,
-            "destination_start": b,
-            "offset": delta,
+            "range": range(a, a + delta),
+            "offset": b - a,
         }
-        self.data.append(row_data)
+        self.data[self.current_key].append(row_data)
 
-    def resolve_seed(self, seed_id: int) -> int:
-        source = "seed"
-        value = seed_id
+    def find_key(self, target: str):
+        return next(key for key in self.data.keys() if key[0] == target)
 
-        while source and source != "location":
-            maps_query = f"""
-            SELECT destination
-                ,  {value} + (destination_start - source_start)
-                AS destination_id
-                , source_start
-                , destination_start
-            FROM maps
-            WHERE source = '{source}'
-            AND {value} between source_start AND source_end
-            """
-            result = query(query=maps_query)
-            if len(result) > 1:
-                raise ValueError(f"Too many results: {result}")
-            if result:
-                source, value, *_ = result[0]
-            else:
-                destination_query = f"""
-                    SELECT DISTINCT destination 
-                    FROM maps 
-                    WHERE source = '{source}'
-                    """
+    def resolve_id(self, in_id: int) -> int:
+        target = "seed"
+        value = in_id
 
+        while target and target != "location":
+            key = self.find_key(target=target)
+            values = self.data[key]
+
+            try:
+                result = next(v for v in values if value in v["range"])
+                value += result["offset"]
+            except StopIteration:
                 # value stays the same if no mapping.
-                source = query(query=destination_query, exactly_one=True)[0][0]
+                pass
+
+            target = key[1]
+
+        return value
+    
+    def resolve_id_range(self, in_id: int) -> int:
+        target = "seed"
+        value = in_id
+
+        while target and target != "location":
+            key = self.find_key(target=target)
+            values = self.data[key]
+
+            try:
+                result = next(v for v in values if value in v["range"])
+                value += result["offset"]
+            except StopIteration:
+                # value stays the same if no mapping.
+                pass
+
+            target = key[1]
 
         return value
 
@@ -103,25 +90,43 @@ def solve1():
 
     m = Maps.from_lines(raw_lines)
 
-    result = [m.resolve_seed(seed) for seed in seeds]
+    result = [m.resolve_id(seed) for seed in seeds]
 
     return min(result)
 
 
+def worker(block, seed_ranges, resolve_id_func):
+    for location_id in block:
+        seed_id = resolve_id_func(location_id)
+        if any(sr for sr in seed_ranges if seed_id in sr):
+            return location_id
+    return None
+
+
 def solve2():
     raw_lines = load_input(__file__).splitlines()
-    seed_ranges = [int(seed) for seed in raw_lines.pop(0).split(":")[1].split()]
-    seed_pairs = zip(seed_ranges[::2], seed_ranges[1::2])
+    seed_line = [int(seed) for seed in raw_lines.pop(0).split(":")[1].split()]
+    seed_pairs = zip(seed_line[::2], seed_line[1::2])
+    seed_ranges = [range(start, start + length) for start, length in seed_pairs]
 
     m = Maps.from_lines(raw_lines)
+    least = 99999999999
 
-    least = None
+    # Work through one block of locations at at time
+    for ran in seed_ranges:
+        for block in split_range_into_n(ran, 100):
+            print(f"solving {block=}")
+            chunk_size = len(block) // num_processes
+            chunks = [
+                block[i : i + chunk_size] for i in range(0, len(block), chunk_size)
+            ]
+            with multiprocessing.Pool(processes=num_processes) as pool:
+                results = pool.starmap(
+                    worker, [(chunk, seed_ranges, m.resolve_id) for chunk in chunks]
+                )
 
-    # for start, length in seed_pairs:
-    #     result = min(m.resolve_seed(start + delta) for delta in range(length))
-    #     if result < least or result is None:
-    #         least = result
-
+            least = min([least, *[result for result in results if result is not None]])
+            print(f"{least=}")
     return least
 
 
