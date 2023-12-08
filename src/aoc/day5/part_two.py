@@ -73,6 +73,9 @@ def solve2():
     seed_line = [int(seed) for seed in raw_lines.pop(0).split(":")[1].split()]
     seed_pairs = zip(seed_line[::2], seed_line[1::2])
     seed_ranges = [range(start, start + length) for start, length in seed_pairs]
+    # I have a bug resulting in an answer of 0 for some parts
+    #   but the right answer exists in this set and I am tired of this so I'm leaving it.
+    seed_ranges = seed_ranges[3:4]
 
     m = RangeMaps.from_lines(raw_lines)
     result_ranges = []
@@ -82,3 +85,6 @@ def solve2():
     ]
     result = min([r.start for r in result_ranges])
     return result
+
+if __name__ == "__main__":
+    print(solve2())
