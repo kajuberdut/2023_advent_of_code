@@ -1,4 +1,6 @@
+import functools
 import pathlib
+import timeit
 
 
 def load_input(dir: pathlib.Path | str, file_name: str = "input.txt"):
@@ -25,3 +27,17 @@ def split_range(original_range, n=2):
 
 def bump_range(r: range, n: int) -> range:
     return range(r.start + n, r.stop + n)
+
+
+def time_function(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = timeit.default_timer()
+        result = func(*args, **kwargs)
+        end_time = timeit.default_timer()
+        print(
+            f"Function {func.__name__} took {end_time - start_time} seconds to execute."
+        )
+        return result
+
+    return wrapper
